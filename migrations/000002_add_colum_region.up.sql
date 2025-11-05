@@ -1,0 +1,1 @@
+ALTER TABLE weather ADD COLUMN city VARCHAR(255);

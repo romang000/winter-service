@@ -1,0 +1,1 @@
+ALTER TABLE weather DROP COLUMN city;
