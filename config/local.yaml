@@ -8,3 +8,10 @@ database:
   username: "admin"
   password: "1234"
   name: "winter_db"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  ReadTimeout: 2s
+  WriteTimeout: 2s

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -10,8 +11,10 @@ import (
 	"github.com/romang000/winter-service/internal/config"
 	"github.com/romang000/winter-service/internal/db"
 	"github.com/romang000/winter-service/internal/handler"
+	redisClient "github.com/romang000/winter-service/internal/redisClient"
 	"github.com/romang000/winter-service/internal/repository"
 	"github.com/romang000/winter-service/internal/service"
+	"github.com/romang000/winter-service/internal/worker"
 	"log"
 	"log/slog"
 	"net/http"
@@ -47,6 +50,30 @@ func main() {
 		panic(err)
 	}
 	
+	rdbClient, err := redisClient.New(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.Db, cfg.Redis.ReadTimeout, cfg.Redis.WriteTimeout)
+	if err != nil {
+		log.Fatalf("cannot create redis client: %v", err)
+	}
+	
+	//TODO:temporary
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	geoClient := geocoding.NewClient(httpClient)
+	openMeteoClient := open_meteo.NewClient(httpClient)
+	
+	cacheRepo := repository.NewCacheRepository(rdbClient)
+	
+	ctx := context.Background()
+	
+	crn, err := worker.NewJobScheduler(ctx, logger, geoClient, openMeteoClient, cacheRepo, "Chita")
+	if err != nil {
+		log.Fatalf("cannot create crn: %v", err)
+	}
+	
+	j, err := crn.InitJobs()
+	wg := sync.WaitGroup{}
+	
+	wg.Add(2)
+	
 	newDb, dsn, err := db.NewDatabaseConnection(cfg.Database)
 	
 	if err != nil {
@@ -66,10 +93,29 @@ func main() {
 	
 	handler.RegisterRoutes(router, logger, srv)
 	
-	logger.Info(fmt.Sprintf("starting app on %s:%s", cfg.Service.Address, cfg.Service.ServerPort))
-	if err = router.Run(fmt.Sprintf("%s:%s", cfg.Service.Address, cfg.Service.ServerPort)); err != nil {
-		panic(err)
-	}
+	go func() {
+		defer wg.Done()
+		
+		logger.Info(fmt.Sprintf("starting app on %s:%s", cfg.Service.Address, cfg.Service.ServerPort))
+		if err = router.Run(fmt.Sprintf("%s:%s", cfg.Service.Address, cfg.Service.ServerPort)); err != nil {
+			panic(err)
+		}
+	}()
+	
+	go func() {
+		defer wg.Done()
+		
+		fmt.Printf("starting job: %v\n", j[0].ID())
+		crn.Scheduler.Start()
+	}()
+	
+	//go func() {
+	//	<-ctx.Done()
+	//	logger.Info(fmt.Sprintf("shutting down worker"))
+	//	crn.Scheduler.Shutdown()
+	//}()
+	
+	wg.Wait()
 	
 	//r := chi.NewRouter()
 	//r.Use(middleware.Logger)

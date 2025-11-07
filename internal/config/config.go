@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/spf13/viper"
+	"time"
 )
 
 type ServiceConfig struct {
@@ -18,9 +19,18 @@ type DatabaseConfig struct {
 	Name     string `mapstructure:"name"`
 }
 
+type RedisConfig struct {
+	Addr         string        `mapstructure:"addr"`
+	Password     string        `mapstructure:"password"`
+	Db           int           `mapstructure:"db"`
+	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout time.Duration `mapstructure:"write_timeout"`
+}
+
 type AppConfig struct {
 	Service  ServiceConfig  `mapstructure:"service"`
 	Database DatabaseConfig `mapstructure:"database"`
+	Redis    RedisConfig    `mapstructure:"redis"`
 }
 
 func LoadConfig(path string) (AppConfig, error) {

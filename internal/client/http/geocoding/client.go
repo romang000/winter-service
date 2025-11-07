@@ -24,6 +24,7 @@ func NewClient(httpClient *http.Client) *Client {
 }
 
 func (c *Client) GetCoords(city string) (Response, error) {
+	const op = "geocoding.client.GetCoords"
 	res, err := c.httpClient.Get(
 		fmt.Sprintf("https://geocoding-api.open-meteo.com/v1/search?name=%s&count=1&language=ru&format=json",
 			city,
@@ -31,13 +32,13 @@ func (c *Client) GetCoords(city string) (Response, error) {
 	)
 	
 	if err != nil {
-		return Response{}, err
+		return Response{}, fmt.Errorf("%s: %w", op, err)
 	}
 	
 	defer res.Body.Close()
 	
 	if res.StatusCode != http.StatusOK {
-		return Response{}, fmt.Errorf("status code: %d", res.StatusCode)
+		return Response{}, fmt.Errorf("%s: status code: %d", op, res.StatusCode)
 	}
 	
 	var geoResp struct {
@@ -45,7 +46,7 @@ func (c *Client) GetCoords(city string) (Response, error) {
 	}
 	
 	if err = json.NewDecoder(res.Body).Decode(&geoResp); err != nil {
-		return Response{}, err
+		return Response{}, fmt.Errorf("%s: %w", op, err)
 	}
 	
 	return geoResp.Results[0], nil

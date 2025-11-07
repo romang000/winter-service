@@ -10,23 +10,7 @@ type WeatherRepository struct {
 }
 
 func New(db *sql.DB) (*WeatherRepository, error) {
-	repo := &WeatherRepository{db: db}
-	
-	if err := repo.createTable(); err != nil {
-		return nil, err
-	}
-	return repo, nil
-}
-
-func (w *WeatherRepository) createTable() error {
-	query := `
-CREATE TABLE IF NOT EXISTS Weather (
-    id BIGSERIAL PRIMARY KEY,
-    temperature REAL
-);`
-	_, err := w.db.Exec(query)
-	
-	return err
+	return &WeatherRepository{db: db}, nil
 }
 
 func (w *WeatherRepository) Add(weather models.Weather) error {
